@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  hoppscotch-aio:
+    container_name: hoppscotch-aio
+    restart: unless-stopped
+    build:
+      dockerfile: prod.Dockerfile
+      context: .
+      target: aio
+    env_file:
+      - ./.env
+    depends_on:
+      hoppscotch-db:
+        condition: service_healthy
+    ports:
+      - "3005:3000"
+      - "3100:3100"
+      - "3170:3170"
+      - "3200:3200"
+      - "3080:80"
+
+  hoppscotch-db:
+    image: postgres:15
+    container_name: hoppscotch-db
+    ports:
+      - "5432:5432"
+    user: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: testpass # CAMBIA QUESTA PASSWORD
+      POSTGRES_DB: hoppscotch
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}'"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  hoppscotch-migrate:
+    build:
+      dockerfile: prod.Dockerfile
+      context: .
+      target: backend
+    env_file:
+      - ./.env
+    depends_on:
+      hoppscotch-db:
+        condition: service_healthy
+    command: sh -c "pnpx prisma migrate deploy"
